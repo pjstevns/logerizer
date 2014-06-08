@@ -1,4 +1,5 @@
 import asyncio
+import argparse
 import sys
 
 
@@ -27,9 +28,13 @@ class LogerizeServer(asyncio.Protocol):
 
 
 def run():
-    print('args: {}'.format(sys.argv))
-    rsock = sys.argv[1].split(':')
-    wsock = sys.argv[2].split(':')
+
+    parser = argparse.ArgumentParser(description='Cleanup syslog messages')
+    parser.add_argument('--listen', nargs=1, default='localhost:8888')
+    parser.add_argument('--sendto', nargs=1, default='localhost:8889')
+    args = parser.parse_args()
+    rsock = args.listen.split(':')
+    wsock = args.listen.split(':')
     rsock[1] = int(rsock[1])
     wsock[1] = int(wsock[1])
 
