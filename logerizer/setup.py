@@ -25,7 +25,8 @@ setup(
     ],
     entry_points=dict(
         console_scripts=[
-            'log_proxy = logerizer.proxy:run'
+            'log_proxy = logerizer.proxy:run',
+            'tcp_sink = logerizer.sink:run',
         ]
     )
 )
