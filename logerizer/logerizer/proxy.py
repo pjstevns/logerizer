@@ -17,20 +17,17 @@ class LogerizeClient(asyncio.Protocol):
 class LogerizeServer(asyncio.Protocol):
     clients = {}
     queue = None
-    _buffer = None
+    _buffer = b''
 
     def connection_made(self, transport):
         self.peer = transport.get_extra_info('peername')
         print('connection from {}'.format(self.peer))
         self.transport = transport
-        self._buffer = bytearray()
+        self._buffer = bytes()
         self._lock = asyncio.Lock()
 
     def connection_lost(self, exc):
         print('connection lost from {}'.format(self.peer))
-
-    def data_received(self, data):
-        self.process_data(data)
 
     def flush(self):
         if not self.queue:
@@ -40,7 +37,7 @@ class LogerizeServer(asyncio.Protocol):
             '\n\t'.join(self.queue.get('msg'))
         )
         self.queue = None
-        asyncio.Task(self.send_data(data.encode()))
+        asyncio.Task(self.send_data(data))
 
     @asyncio.coroutine
     def send_data(self, data):
@@ -51,18 +48,18 @@ class LogerizeServer(asyncio.Protocol):
             proto, client = yield from loop.create_connection(
                 LogerizeClient, wsock[0], wsock[1])
             self.clients[self.peer] = client
-        client.transport.write(data)
+        client.transport.write(data.encode())
         client.transport.close()
 
-    def process_data(self, data):
-        self._buffer += bytearray(data)
-        assert(isinstance(self._buffer, bytearray))
+    def data_received(self, data):
+        self._buffer += data
+        assert(isinstance(self._buffer, bytes))
         lastnl = self._buffer.rindex(b'\n')
+        self.process_data(self._buffer[:lastnl+1])
+        self._buffer = self._buffer[lastnl+1:]
 
-        data = self._buffer[:lastnl+1].decode()
-        rest = self._buffer[lastnl+1:]
-        self._buffer = bytearray(rest)
-        lines = [x for x in data.split('\n') if x]
+    def process_data(self, data):
+        lines = [x for x in data.decode().split('\n') if x]
         for line in lines:
             try:
                 keylen = line[15:].index(':') + 15
