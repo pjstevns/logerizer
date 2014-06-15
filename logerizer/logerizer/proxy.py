@@ -19,14 +19,12 @@ class LogerizeServer(asyncio.Protocol):
     queue = None
     _buffer = None
 
-    def __init__(self, *args, **kw):
-        super(LogerizeServer, self).__init__(*args, **kw)
-
     def connection_made(self, transport):
         self.peer = transport.get_extra_info('peername')
         print('connection from {}'.format(self.peer))
         self.transport = transport
         self._buffer = bytearray()
+        self._lock = asyncio.Lock()
 
     def connection_lost(self, exc):
         print('connection lost from {}'.format(self.peer))
@@ -37,11 +35,12 @@ class LogerizeServer(asyncio.Protocol):
     def flush(self):
         if not self.queue:
             return
-        msg = '\n\t'.join(self.queue.get('msg'))
-        key = self.queue.get('key')
-        data = '%s: %s' % (key, msg)
-        asyncio.Task(self.send_data(data.encode()))
+        data = '%s: %s' % (
+            self.queue.get('key'),
+            '\n\t'.join(self.queue.get('msg'))
+        )
         self.queue = None
+        asyncio.Task(self.send_data(data.encode()))
 
     @asyncio.coroutine
     def send_data(self, data):
@@ -51,7 +50,6 @@ class LogerizeServer(asyncio.Protocol):
             loop = asyncio.get_event_loop()
             proto, client = yield from loop.create_connection(
                 LogerizeClient, wsock[0], wsock[1])
-            client.server_transport = self.transport
             self.clients[self.peer] = client
         client.transport.write(data)
         client.transport.close()
@@ -71,7 +69,7 @@ class LogerizeServer(asyncio.Protocol):
                 key = line[:keylen]
                 msg = line[keylen+2:]
             except:
-                msg = line
+                raise Exception('key not found')
 
             if self.queue:
                 if self.queue.get('key') == key:
@@ -89,7 +87,6 @@ class LogerizeServer(asyncio.Protocol):
 
 
 def run():
-    global loop
     global wsock
     parser = argparse.ArgumentParser(description='Cleanup syslog messages')
     parser.add_argument('--listen', nargs=1, default=['0.0.0.0:5542'])
