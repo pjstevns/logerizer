@@ -32,7 +32,7 @@ class LogerizeServer(asyncio.Protocol):
     def flush(self):
         if not self.queue:
             return
-        data = '%s: %s' % (
+        data = '%s %s' % (
             self.queue.get('key'),
             '\n\t'.join(self.queue.get('msg'))
         )
@@ -64,7 +64,11 @@ class LogerizeServer(asyncio.Protocol):
             try:
                 keylen = line[15:].index(':') + 15
                 key = line[:keylen]
-                msg = line[keylen+2:]
+                processid = key.split()[-1]
+                if processid == 'apache-error':
+                    keylen += 28
+                    key = line[:keylen]
+                msg = line[keylen+1:]
             except:
                 raise Exception('key not found')
 
