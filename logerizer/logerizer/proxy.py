@@ -32,9 +32,9 @@ class LogerizeServer(asyncio.Protocol):
     def flush(self):
         if not self.queue:
             return
-        data = '%s %s' % (
+        data = '%s %s\n' % (
             self.queue.get('key'),
-            '\n\t'.join(self.queue.get('msg'))
+            '\r'.join(self.queue.get('msg'))
         )
         self.queue = None
         asyncio.Task(self.send_data(data))
